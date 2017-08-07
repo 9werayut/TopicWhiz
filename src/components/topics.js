@@ -3,14 +3,22 @@ import {
     View,
     Text,
     TextInput,
-    TouchableOpacity
+    TouchableOpacity,
+    ListView
 } from 'react-native';
+
 import styles from '../styles';
-import { firebaseApp } from './auth/authentication';
+import { firebaseApp, topicsRef } from './auth/authentication';
+const ds = new ListView.DataSource({ rowHasChanged: (r1, r2) => r1 != r2});
 
 class Topics extends React.Component {
     state = {
-        displayName: ''
+        displayName: '',
+        title: '',
+        dataSource: ds.cloneWithRows([{
+            title: 'Why is the sky blue?',
+            author: 'grean'
+        }])
     }
 
     componentDidMount(){
@@ -23,7 +31,9 @@ class Topics extends React.Component {
             //proceed normally with application
             this.setState({
                 displayName: user.displayName
-            })
+            });
+
+            this.listenForItems(topicsRef);
         }
     }
 
@@ -36,6 +46,32 @@ class Topics extends React.Component {
             }, error => {
                 console.log(error);
             })
+    }
+
+    renderRow(rowData) {
+        return (
+            <View style={styles.row}>
+                <Text style={styles.rowTitle}>
+                    {rowData.title}
+                </Text>
+                <Text>
+                    {rowData.author}
+                </Text>
+            </View>
+        )
+    }
+
+    listenForItems(ref) {
+        ref.on('value', snap => {
+            let topics = [];
+            snap.forEach(topic => {
+                topics.push({
+                    title: topic.val().title,
+                    author: topic.val().author
+                });
+            });
+            this.setState({dataSource: ds.cloneWithRows(topics)});
+        })
     }
 
     render() {
@@ -53,8 +89,19 @@ class Topics extends React.Component {
                         {this.state.displayName}
                     </Text>
                 </View>
-                <View style={styles.body}></View>
-                <Text>Topics</Text>
+                <View style={styles.body}>
+                    <TextInput 
+                        placeholder="Something on your mind?"
+                        style={styles.input}
+                        onChangeText={text => this.setState({title: text})}
+                    />
+                    <ListView
+                        style={styles.list}
+                        enableEmptySections={true}
+                        dataSource={this.state.dataSource}
+                        renderRow={rowData => this.renderRow(rowData)}
+                    />
+                </View>
             </View>
         );
     }
